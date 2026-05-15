@@ -18,6 +18,7 @@ export DEEPSEEK_API_KEY=sk-...
 # Optional overrides:
 # export REVIEW_MODEL=deepseek:deepseek-v4-pro
 # export REVIEW_MODEL=openrouter:deepseek/deepseek-v4-flash  # needs OPENROUTER_API_KEY instead
+# export MEMORY_MODEL=…   # optional; observational-memory step defaults to same model as REVIEW_MODEL
 
 bash scripts/prepare-review-context.sh    # from a git repo with commits
 npm run review
@@ -28,9 +29,10 @@ cat .review-context/REVIEW.md
 
 1. **GitHub → Settings → Secrets and variables → Actions**
    - Add **`DEEPSEEK_API_KEY`** (from [DeepSeek platform](https://platform.deepseek.com/)) *or* **`OPENROUTER_API_KEY`** if you route models through OpenRouter.
-2. **Variables (optional)** — **`REVIEW_MODEL`**
-   - Default in code: **`deepseek:deepseek-v4-flash`** (good balance of quality/cost in the bundled pi-ai catalog).
+2. **Variables (optional)** — **`REVIEW_MODEL`**, **`MEMORY_MODEL`**
+   - **`REVIEW_MODEL`** — default **`deepseek:deepseek-v4-flash`** (workflow expression also defaults this when the variable is unset).
    - Other examples: **`deepseek:deepseek-v4-pro`**, or **`openrouter:…`** with OpenRouter’s model id string.
+   - **`MEMORY_MODEL`** — observational-memory extraction inside duet-agent defaults to **`gpt-5.4-mini`** in upstream; this harness sets memory work to **match `REVIEW_MODEL`** unless you override here (useful if you intentionally want a cheap OpenAI mini for memory only—then supply the matching provider key).
 3. **Actions enabled** on the repo (Settings → Actions → General).
 4. Open or update a **pull request** — `pull_request` events drive the workflow (not every bare push to `main` unless you add a `push` trigger later).
 
@@ -40,7 +42,7 @@ This repo’s workflow is **`workflow_call`-able**. Each app repo only needs a t
 
 1. Copy **`examples/caller-workflow.yml`** into your app repo as `.github/workflows/duet-code-review.yml` (or any name).
 2. The template pins **`@v1`** on `uses:` (move the tag only when you intentionally ship breaking workflow changes).
-3. On the **app repo**, add the same Actions **secrets** / **vars** (`DEEPSEEK_API_KEY`, optional `OPENROUTER_API_KEY`, optional `REVIEW_MODEL`).
+3. On the **app repo**, add the same Actions **secrets** / **vars** (`DEEPSEEK_API_KEY`, optional `OPENROUTER_API_KEY`, optional `REVIEW_MODEL`, optional `MEMORY_MODEL`).
 4. **`secrets: inherit`** passes caller secrets into the reusable workflow.
 
 Behavior:

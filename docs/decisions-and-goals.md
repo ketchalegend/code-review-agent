@@ -37,6 +37,10 @@ The harness uses **`@earendil-works/pi-ai`**, which treats **DeepSeek as a first
 
 **OpenRouter** remains supported for aggregation / failover: set **`OPENROUTER_API_KEY`** and a model id such as **`openrouter:deepseek/deepseek-v4-flash`** (exact ids depend on OpenRouter’s catalog).
 
+### Observational memory step uses the same provider by default
+
+duet-agent’s observational PGlite pipeline runs **structured extraction** after agent turns. Upstream defaults that step to **`gpt-5.4-mini`** (OpenAI credentials). For **DeepSeek-only** setups we set **`TurnRunnerConfig.memoryModel`** in **`run-review.ts`** to **`REVIEW_MODEL`** unless **`MEMORY_MODEL`** / **`DUET_MEMORY_MODEL`** is set, so CI does not need a separate OpenAI key. Override **`MEMORY_MODEL`** only when you deliberately want a different model for memory (and configure that provider’s credentials).
+
 ### CI integration: **GitHub Actions** + **reusable workflow**
 
 - Trigger: `pull_request` (opened, synchronize, reopened) on the repo that **executes** the job (this repo directly, or an app repo via a caller workflow).
@@ -64,7 +68,7 @@ The agent is instructed to write **`.review-context/REVIEW.md`** with structured
 
 | Piece | Purpose |
 |-------|---------|
-| `src/run-review.ts` | Boots `TurnRunner`, restores optional state, injects review prompt + CI brief, writes updated state |
+| `src/run-review.ts` | Boots `TurnRunner` (`model` + aligned `memoryModel`), restores optional state, injects review prompt + CI brief, writes updated state |
 | `scripts/prepare-review-context.sh` | Builds factual grounding (diff, refs, PR metadata) for each run |
 | `.github/workflows/duet-code-review.yml` | `pull_request` + `workflow_call`: caches memory, runs reviewer, posts PR comment |
 | `examples/caller-workflow.yml` | Copy into app repos to invoke the reusable workflow |
@@ -77,3 +81,4 @@ The agent is instructed to write **`.review-context/REVIEW.md`** with structured
 - **2026-05-15**: Initial capture—autonomous reviewer with duet-agent, DeepSeek via OpenRouter, GitHub Actions + cached PGlite memory.
 - **2026-05-15**: Documented **DeepSeek official API** (`DEEPSEEK_API_KEY`) as the default path; OpenRouter optional.
 - **2026-05-15**: Added **`workflow_call`** reusable workflow + second-checkout tooling pattern for multi-repo use.
+- **2026-05-15**: **`memoryModel`** follows **`REVIEW_MODEL`** by default so observational memory does not require OpenAI when using DeepSeek-only CI; optional **`MEMORY_MODEL`** documented.

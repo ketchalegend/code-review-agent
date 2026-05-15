@@ -1,6 +1,9 @@
 # Add this file to YOUR application repo as:
 #   .github/workflows/duet-code-review.yml
 #
+# Caller repo Actions secrets (inherited): DEEPSEEK_API_KEY and/or OPENROUTER_API_KEY.
+# Optional Actions variables: REVIEW_MODEL, MEMORY_MODEL (see code-review-agent README).
+#
 name: Code review (duet-agent)
 
 on:

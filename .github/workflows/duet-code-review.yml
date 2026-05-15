@@ -95,7 +95,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # vars.REVIEW_MODEL is often "" when unset; empty env breaks duet (?? does not treat "" as missing).
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'deepseek:deepseek-v4-flash' }}
-          # Observational memory defaults to gpt-5.4-mini inside duet; align with REVIEW_MODEL in CI.
+          # Optional override for observational-memory extraction; blank → run-review uses REVIEW_MODEL.
           MEMORY_MODEL: ${{ vars.MEMORY_MODEL }}
           CONTEXT_PATH: ${{ github.workspace }}/.review-context/review-brief.md
           REVIEW_OUTPUT_PATH: ${{ github.workspace }}/.review-context/REVIEW.md
