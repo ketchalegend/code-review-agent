@@ -55,10 +55,10 @@ async function main() {
 
   ensureDirs(path.dirname(memoryDbPath), path.dirname(contextPath));
 
+  const rawModel =
+    process.env.REVIEW_MODEL ?? process.env.DUET_REVIEW_MODEL ?? "";
   const model =
-    process.env.REVIEW_MODEL ??
-    process.env.DUET_REVIEW_MODEL ??
-    "deepseek:deepseek-v4-flash";
+    rawModel.trim() || "deepseek:deepseek-v4-flash";
 
   const contextBrief = existsSync(contextPath)
     ? readFileSync(contextPath, "utf8")

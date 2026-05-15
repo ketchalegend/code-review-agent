@@ -93,7 +93,8 @@ jobs:
           REVIEW_WORKING_DIRECTORY: ${{ github.workspace }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          # vars.REVIEW_MODEL is often "" when unset; empty env breaks duet (?? does not treat "" as missing).
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'deepseek:deepseek-v4-flash' }}
           CONTEXT_PATH: ${{ github.workspace }}/.review-context/review-brief.md
           REVIEW_OUTPUT_PATH: ${{ github.workspace }}/.review-context/REVIEW.md
           MEMORY_DB_PATH: ${{ github.workspace }}/.duet-ci/memory.db
