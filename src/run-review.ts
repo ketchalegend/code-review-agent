@@ -6,6 +6,8 @@
  * - OPENROUTER_API_KEY — optional; use with REVIEW_MODEL like openrouter:deepseek/deepseek-v4-flash
  * - Other providers: see duet-agent / pi-ai env docs
  * - REVIEW_MODEL (default: deepseek:deepseek-v4-flash)
+ * - MEMORY_MODEL — observational-memory extraction/reflection (default: same as REVIEW_MODEL).
+ *   Duet's built-in default is gpt-5.4-mini (OpenAI); override when using DeepSeek-only CI.
  * - MEMORY_DB_PATH (default: .duet-ci/memory.db)
  * - TURN_STATE_PATH (optional JSON; restored if present)
  * - CONTEXT_PATH (default: under REVIEW_WORKING_DIRECTORY)
@@ -60,6 +62,10 @@ async function main() {
   const model =
     rawModel.trim() || "deepseek:deepseek-v4-flash";
 
+  const rawMemoryModel =
+    process.env.MEMORY_MODEL ?? process.env.DUET_MEMORY_MODEL ?? "";
+  const memoryModel = rawMemoryModel.trim() || model;
+
   const contextBrief = existsSync(contextPath)
     ? readFileSync(contextPath, "utf8")
     : "(No review brief file; rely on repo + git commands.)";
@@ -68,6 +74,7 @@ async function main() {
 
   const config: TurnRunnerConfig = {
     model,
+    memoryModel,
     cwd: reviewRoot,
     memoryDbPath,
   };
