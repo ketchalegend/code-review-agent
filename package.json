@@ -1,0 +1,21 @@
+{
+  "name": "duet-code-review-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "review": "tsx src/run-review.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@duetso/agent": "^0.1.123"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
