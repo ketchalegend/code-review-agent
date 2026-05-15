@@ -12,6 +12,12 @@ mkdir -p "$OUT_DIR"
   echo "- SHA: ${GITHUB_SHA:-unknown}"
   echo "- Actor: ${GITHUB_ACTOR:-unknown}"
   echo ""
+  if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]] && [[ -n "${BASE_SHA:-}" ]] && [[ -n "${HEAD_SHA:-}" ]]; then
+    echo "## Push compare range"
+    echo "- Base SHA: ${BASE_SHA}"
+    echo "- Head SHA: ${HEAD_SHA}"
+    echo ""
+  fi
   if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
     echo "## Pull request"
     echo "- Base ref: ${GITHUB_BASE_REF}"
