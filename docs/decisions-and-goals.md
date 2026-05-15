@@ -43,7 +43,7 @@ duet-agent’s observational PGlite pipeline runs **structured extraction** afte
 
 ### CI integration: **GitHub Actions** + **reusable workflow**
 
-- Trigger: `pull_request` (opened, synchronize, reopened) on the repo that **executes** the job (this repo directly, or an app repo via a caller workflow).
+- Trigger: `pull_request` (opened, synchronize, reopened) on the repo that **executes** the job (this repo directly, or an app repo via a caller workflow); optional **`issue_comment`** re-run via **`/duet-review`** in the caller (see README).
 - The workflow here supports **`workflow_call`**. Other repos use **`examples/caller-workflow.yml`** with `secrets: inherit` (see README).
 - **App repos**: second checkout clones `code-review-agent` into **`.review-tooling`** for `npm ci`; **`TurnRunner` `cwd`** is the **caller** workspace (`REVIEW_WORKING_DIRECTORY` / `GITHUB_WORKSPACE`) so diffs and tools see application code.
 - **This repo**: no second checkout when `github.repository` equals the tooling repository; tooling root is **`.`**.
@@ -82,3 +82,4 @@ The agent is instructed to write **`.review-context/REVIEW.md`** with structured
 - **2026-05-15**: Documented **DeepSeek official API** (`DEEPSEEK_API_KEY`) as the default path; OpenRouter optional.
 - **2026-05-15**: Added **`workflow_call`** reusable workflow + second-checkout tooling pattern for multi-repo use.
 - **2026-05-15**: **`memoryModel`** follows **`REVIEW_MODEL`** by default so observational memory does not require OpenAI when using DeepSeek-only CI; optional **`MEMORY_MODEL`** documented.
+- **2026-05-15**: Optional **`issue_comment`** path (caller gate **`/duet-review`**) to re-run review; reusable workflow resolves PR SHAs and rejects fork-head PRs for that trigger.

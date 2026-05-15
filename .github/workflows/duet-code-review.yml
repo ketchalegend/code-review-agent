@@ -26,7 +26,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: duet-review-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: duet-review-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -34,8 +34,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Resolve PR context
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            let baseSha;
+            let headSha;
+            let prNumber;
+            let baseRef;
+
+            if (context.eventName === 'pull_request') {
+              const pr = context.payload.pull_request;
+              baseSha = pr.base.sha;
+              headSha = pr.head.sha;
+              prNumber = pr.number;
+              baseRef = pr.base.ref;
+            } else if (context.eventName === 'issue_comment') {
+              const issue = context.payload.issue;
+              if (!issue.pull_request) {
+                core.setFailed('Comment is not on a pull request.');
+                return;
+              }
+              const { data: pr } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: issue.number,
+              });
+              if (pr.head.repo.full_name !== `${owner}/${repo}`) {
+                core.setFailed(
+                  'Comment-triggered review is disabled when the PR head branch is from a fork.',
+                );
+                return;
+              }
+              baseSha = pr.base.sha;
+              headSha = pr.head.sha;
+              prNumber = pr.number;
+              baseRef = pr.base.ref;
+            } else {
+              core.setFailed(`Unsupported event for this workflow: ${context.eventName}`);
+              return;
+            }
+
+            core.setOutput('base_sha', baseSha);
+            core.setOutput('head_sha', headSha);
+            core.setOutput('pr_number', String(prNumber));
+            core.setOutput('base_ref', baseRef);
+
       - uses: actions/checkout@v4
         with:
+          ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0
 
       - name: Resolve tooling paths
@@ -72,15 +124,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .duet-ci
-          key: duet-ci-${{ github.repository }}-base-${{ github.base_ref }}-v2
+          key: duet-ci-${{ github.repository }}-base-${{ steps.pr.outputs.base_ref }}-v2
           restore-keys: |
-            duet-ci-${{ github.repository }}-base-${{ github.base_ref }}-
+            duet-ci-${{ github.repository }}-base-${{ steps.pr.outputs.base_ref }}-
 
       - name: Prepare review brief
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
         run: bash "${{ steps.tooling_paths.outputs.tooling_root }}/scripts/prepare-review-context.sh"
 
       - name: Install dependencies
@@ -105,9 +157,16 @@ jobs:
 
       - name: Comment on PR
         uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
         with:
           script: |
             const fs = require('fs');
+            const prNumber = Number(process.env.PR_NUMBER);
+            if (!Number.isFinite(prNumber)) {
+              core.setFailed('Missing PR_NUMBER');
+              return;
+            }
             const path = '.review-context/REVIEW.md';
             let body;
             try {
@@ -121,7 +180,7 @@ jobs:
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: prNumber,
               per_page: 100,
             });
             const existing = comments.find((c) => c.body?.includes(marker));
@@ -136,7 +195,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: prNumber,
                 body: payload,
               });
             }

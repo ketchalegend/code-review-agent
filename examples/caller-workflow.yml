@@ -3,12 +3,15 @@
 #
 # Caller repo Actions secrets (inherited): DEEPSEEK_API_KEY and/or OPENROUTER_API_KEY.
 # Optional Actions variables: REVIEW_MODEL, MEMORY_MODEL (see code-review-agent README).
+# Optional: comment /duet-review on the PR (non-bot) to re-run; workflow YAML must be on default branch.
 #
 name: Code review (duet-agent)
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -16,5 +19,11 @@ permissions:
 
 jobs:
   duet-review:
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/duet-review') &&
+       github.event.comment.user.type != 'Bot')
     uses: ketchalegend/code-review-agent/.github/workflows/duet-code-review.yml@v1
     secrets: inherit

@@ -36,6 +36,10 @@ cat .review-context/REVIEW.md
 3. **Actions enabled** on the repo (Settings → Actions → General).
 4. Open or update a **pull request** — `pull_request` events drive the workflow (not every bare push to `main` unless you add a `push` trigger later).
 
+### Re-run from a PR comment (optional)
+
+In **caller** workflows, add `issue_comment: types: [created]` and gate the reusable job with a phrase check (see **`examples/caller-workflow.yml`**). Anyone who can comment (and isn’t a bot) can post **`/duet-review`** on the PR to run another review. GitHub only evaluates **`issue_comment`** workflows from the **default branch** copy of that YAML—merge the caller workflow before relying on comments. The reusable workflow refuses **fork-head** PRs for this path so secrets never run against untrusted code from `issue_comment` triggers.
+
 ## Reusable workflow (recommended for other repos)
 
 This repo’s workflow is **`workflow_call`-able**. Each app repo only needs a thin caller workflow.
