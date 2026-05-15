@@ -39,8 +39,7 @@ cat .review-context/REVIEW.md
 This repo’s workflow is **`workflow_call`-able**. Each app repo only needs a thin caller workflow.
 
 1. Copy **`examples/caller-workflow.yml`** into your app repo as `.github/workflows/duet-code-review.yml` (or any name).
-2. Change `uses:` to pin a **tag**, not moving `main`:
-   `uses: ketchalegend/code-review-agent/.github/workflows/duet-code-review.yml@v1`
+2. The template pins **`@v1`** on `uses:` (move the tag only when you intentionally ship breaking workflow changes).
 3. On the **app repo**, add the same Actions **secrets** / **vars** (`DEEPSEEK_API_KEY`, optional `OPENROUTER_API_KEY`, optional `REVIEW_MODEL`).
 4. **`secrets: inherit`** passes caller secrets into the reusable workflow.
 
