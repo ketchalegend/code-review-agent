@@ -11,7 +11,7 @@ We want an **autonomous code reviewer** that runs in **GitHub** on pull requests
 1. **Understand the codebase** well enough to find **real issues**—bugs, security flaws, incorrect assumptions, breaking API behavior—not generic fluff.
 2. **Explore** beyond the immediate patch when useful (read files, run read-only shell commands like search/`git`/`rg`-style workflows via duet’s tools).
 3. **Remember context across sessions**: conventions for this repo, recurring pitfalls, past review conclusions—without stuffing everything into one enormous prompt each run.
-4. Use **DeepSeek** as the primary reasoning model, exposed through **OpenRouter** (OpenAI-compatible routing).
+4. Use **DeepSeek** as the primary reasoning model via the **official DeepSeek API** (`DEEPSEEK_API_KEY`); **OpenRouter** remains optional.
 
 Success looks like: **high-signal PR comments** that cite evidence, improve over time as memory accrues, and behave like a senior reviewer who has seen the repo before.
 
@@ -28,18 +28,23 @@ We chose **[duet-agent](https://github.com/dzhng/duet-agent)** (`@duetso/agent`)
 
 We **did not** adopt Memori / MemPalace / SimpleMem as separate memory layers for the first version because duet-agent already embeds a production-shaped memory pipeline. Adding a second memory system would duplicate responsibility unless we later split “org-wide knowledge” from “duet session memory” with a clear boundary.
 
-### Model routing: **DeepSeek via OpenRouter**
+### Model routing: **DeepSeek API directly** (default) or OpenRouter
 
-- Default model string in code: `openrouter:deepseek/deepseek-chat` (override with **`REVIEW_MODEL`**).
-- Credential path in CI: **`OPENROUTER_API_KEY`** as a GitHub Actions secret.
+The harness uses **`@earendil-works/pi-ai`**, which treats **DeepSeek as a first-class provider**:
 
-Other providers supported by duet-agent remain available if we change keys and model ids.
+- Set **`DEEPSEEK_API_KEY`** — requests go to **`https://api.deepseek.com`** (no extra base URL needed).
+- Default review model in this repo: **`deepseek:deepseek-v4-flash`** (override with **`REVIEW_MODEL`**).
 
-### CI integration: **GitHub Actions on pull requests**
+**OpenRouter** remains supported for aggregation / failover: set **`OPENROUTER_API_KEY`** and a model id such as **`openrouter:deepseek/deepseek-v4-flash`** (exact ids depend on OpenRouter’s catalog).
 
-- Trigger: `pull_request` (opened, synchronize, reopened).
-- We **prepare** a markdown brief (diff + metadata) for the agent, **run** the harness, then **post or update** a single PR comment (anchored by an HTML comment marker).
-- **Persistence**: `.duet-ci/` (PGlite `memory.db` + serialized `turn-state.json`) is **cached** in Actions keyed by repository and base ref so memory can compound across runs on the same integration branch line.
+### CI integration: **GitHub Actions** + **reusable workflow**
+
+- Trigger: `pull_request` (opened, synchronize, reopened) on the repo that **executes** the job (this repo directly, or an app repo via a caller workflow).
+- The workflow here supports **`workflow_call`**. Other repos use **`examples/caller-workflow.yml`** with `secrets: inherit` (see README).
+- **App repos**: second checkout clones `code-review-agent` into **`.review-tooling`** for `npm ci`; **`TurnRunner` `cwd`** is the **caller** workspace (`REVIEW_WORKING_DIRECTORY` / `GITHUB_WORKSPACE`) so diffs and tools see application code.
+- **This repo**: no second checkout when `github.repository` equals the tooling repository; tooling root is **`.`**.
+- **Persistence**: `.duet-ci/` is **cached per caller `github.repository` + `github.base_ref`**, so each app keeps its own memory lane.
+- We **prepare** a markdown brief, **run** the harness, then **post or update** one PR comment (HTML marker for idempotency).
 
 ### Deliverable format
 
@@ -61,7 +66,8 @@ The agent is instructed to write **`.review-context/REVIEW.md`** with structured
 |-------|---------|
 | `src/run-review.ts` | Boots `TurnRunner`, restores optional state, injects review prompt + CI brief, writes updated state |
 | `scripts/prepare-review-context.sh` | Builds factual grounding (diff, refs, PR metadata) for each run |
-| `.github/workflows/duet-code-review.yml` | Schedules runs, caches memory store, posts PR feedback |
+| `.github/workflows/duet-code-review.yml` | `pull_request` + `workflow_call`: caches memory, runs reviewer, posts PR comment |
+| `examples/caller-workflow.yml` | Copy into app repos to invoke the reusable workflow |
 | `AGENTS.md` | Repo-local reviewer tone and priorities (loaded by duet-agent conventions) |
 
 ---
@@ -69,3 +75,5 @@ The agent is instructed to write **`.review-context/REVIEW.md`** with structured
 ## Revision notes
 
 - **2026-05-15**: Initial capture—autonomous reviewer with duet-agent, DeepSeek via OpenRouter, GitHub Actions + cached PGlite memory.
+- **2026-05-15**: Documented **DeepSeek official API** (`DEEPSEEK_API_KEY`) as the default path; OpenRouter optional.
+- **2026-05-15**: Added **`workflow_call`** reusable workflow + second-checkout tooling pattern for multi-repo use.

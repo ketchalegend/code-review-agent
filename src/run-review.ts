@@ -2,12 +2,15 @@
  * Autonomous PR reviewer using @duetso/agent (PGlite observational memory).
  *
  * Env:
- * - OPENROUTER_API_KEY (DeepSeek via OpenRouter) or keys per https://github.com/dzhng/duet-agent
- * - REVIEW_MODEL (default: openrouter:deepseek/deepseek-chat)
+ * - DEEPSEEK_API_KEY — DeepSeek official API (recommended default; base URL is wired in pi-ai)
+ * - OPENROUTER_API_KEY — optional; use with REVIEW_MODEL like openrouter:deepseek/deepseek-v4-flash
+ * - Other providers: see duet-agent / pi-ai env docs
+ * - REVIEW_MODEL (default: deepseek:deepseek-v4-flash)
  * - MEMORY_DB_PATH (default: .duet-ci/memory.db)
  * - TURN_STATE_PATH (optional JSON; restored if present)
- * - CONTEXT_PATH (default: .review-context/review-brief.md)
- * - REVIEW_OUTPUT_PATH (default: .review-context/REVIEW.md)
+ * - CONTEXT_PATH (default: under REVIEW_WORKING_DIRECTORY)
+ * - REVIEW_OUTPUT_PATH (default: under REVIEW_WORKING_DIRECTORY)
+ * - REVIEW_WORKING_DIRECTORY — repo root under review (defaults to GITHUB_WORKSPACE or cwd)
  */
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -32,24 +35,30 @@ function ensureDirs(...dirs: string[]) {
 }
 
 async function main() {
-  const cwd = process.cwd();
+  const reviewRoot =
+    process.env.REVIEW_WORKING_DIRECTORY ??
+    process.env.GITHUB_WORKSPACE ??
+    process.cwd();
+
   const memoryDbPath =
-    process.env.MEMORY_DB_PATH ?? path.join(cwd, ".duet-ci", "memory.db");
+    process.env.MEMORY_DB_PATH ??
+    path.join(reviewRoot, ".duet-ci", "memory.db");
   const turnStatePath =
-    process.env.TURN_STATE_PATH ?? path.join(cwd, ".duet-ci", "turn-state.json");
+    process.env.TURN_STATE_PATH ??
+    path.join(reviewRoot, ".duet-ci", "turn-state.json");
   const contextPath =
     process.env.CONTEXT_PATH ??
-    path.join(cwd, ".review-context", "review-brief.md");
+    path.join(reviewRoot, ".review-context", "review-brief.md");
   const outputPath =
     process.env.REVIEW_OUTPUT_PATH ??
-    path.join(cwd, ".review-context", "REVIEW.md");
+    path.join(reviewRoot, ".review-context", "REVIEW.md");
 
   ensureDirs(path.dirname(memoryDbPath), path.dirname(contextPath));
 
   const model =
     process.env.REVIEW_MODEL ??
     process.env.DUET_REVIEW_MODEL ??
-    "openrouter:deepseek/deepseek-chat";
+    "deepseek:deepseek-v4-flash";
 
   const contextBrief = existsSync(contextPath)
     ? readFileSync(contextPath, "utf8")
@@ -59,7 +68,7 @@ async function main() {
 
   const config: TurnRunnerConfig = {
     model,
-    cwd,
+    cwd: reviewRoot,
     memoryDbPath,
   };
 

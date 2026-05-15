@@ -1,0 +1,20 @@
+# Add this file to YOUR application repo as:
+#   .github/workflows/duet-code-review.yml
+#
+# Pin a release tag (recommended) instead of @main:
+#   uses: ketchalegend/code-review-agent/.github/workflows/duet-code-review.yml@v1
+
+name: Code review (duet-agent)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  duet-review:
+    uses: ketchalegend/code-review-agent/.github/workflows/duet-code-review.yml@main
+    secrets: inherit

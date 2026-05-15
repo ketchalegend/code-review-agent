@@ -3,6 +3,23 @@ name: Duet autonomous code review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_call:
+    secrets:
+      DEEPSEEK_API_KEY:
+        required: false
+      OPENROUTER_API_KEY:
+        required: false
+    inputs:
+      tooling_repository:
+        description: owner/name of repo that hosts package.json, src/, scripts/
+        type: string
+        required: false
+        default: ketchalegend/code-review-agent
+      tooling_ref:
+        description: Git ref (branch or tag) for tooling checkout
+        type: string
+        required: false
+        default: main
 
 permissions:
   contents: read
@@ -21,6 +38,32 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve tooling paths
+        id: tooling_paths
+        env:
+          TOOLING_REPOSITORY: ${{ inputs.tooling_repository || 'ketchalegend/code-review-agent' }}
+          TOOLING_REF: ${{ inputs.tooling_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TOOL_LOWER=$(echo "$TOOLING_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          echo "tooling_repository=$TOOLING_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "tooling_ref=$TOOLING_REF" >> "$GITHUB_OUTPUT"
+          if [ "$REPO_LOWER" = "$TOOL_LOWER" ]; then
+            echo "tooling_root=." >> "$GITHUB_OUTPUT"
+            echo "needs_tooling_checkout=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tooling_root=.review-tooling" >> "$GITHUB_OUTPUT"
+            echo "needs_tooling_checkout=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.tooling_paths.outputs.needs_tooling_checkout == 'true'
+        with:
+          repository: ${{ steps.tooling_paths.outputs.tooling_repository }}
+          ref: ${{ steps.tooling_paths.outputs.tooling_ref }}
+          path: .review-tooling
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -29,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .duet-ci
-          key: duet-ci-${{ github.repository }}-base-${{ github.base_ref }}-v1
+          key: duet-ci-${{ github.repository }}-base-${{ github.base_ref }}-v2
           restore-keys: |
             duet-ci-${{ github.repository }}-base-${{ github.base_ref }}-
 
@@ -38,13 +81,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: bash scripts/prepare-review-context.sh
+        run: bash "${{ steps.tooling_paths.outputs.tooling_root }}/scripts/prepare-review-context.sh"
 
       - name: Install dependencies
-        run: npm install
+        working-directory: ${{ steps.tooling_paths.outputs.tooling_root }}
+        run: npm ci
 
       - name: Run autonomous reviewer
+        working-directory: ${{ steps.tooling_paths.outputs.tooling_root }}
         env:
+          REVIEW_WORKING_DIRECTORY: ${{ github.workspace }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
           CONTEXT_PATH: ${{ github.workspace }}/.review-context/review-brief.md
